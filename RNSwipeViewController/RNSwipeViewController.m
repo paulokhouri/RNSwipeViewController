@@ -36,6 +36,8 @@ NSString * const RNSwipeViewControllerRightWillAppear = @"com.whoisryannystrom.R
 NSString * const RNSwipeViewControllerRightDidAppear = @"com.whoisryannystrom.RNSwipeViewControllerRightDidAppear";
 NSString * const RNSwipeViewControllerBottomWillAppear = @"com.whoisryannystrom.RNSwipeViewControllerBottomWillAppear";
 NSString * const RNSwipeViewControllerBottomDidAppear = @"com.whoisryannystrom.RNSwipeViewControllerBottomDidAppear";
+NSString * const RNSwipeViewControllerTopWillAppear = @"com.whoisryannystrom.RNSwipeViewControllerTopWillAppear";
+NSString * const RNSwipeViewControllerTopDidAppear = @"com.whoisryannystrom.RNSwipeViewControllerTopDidAppear";
 NSString * const RNSwipeViewControllerCenterWillAppear = @"com.whoisryannystrom.RNSwipeViewControllerCenterWillAppear";
 NSString * const RNSwipeViewControllerCenterDidAppear = @"com.whoisryannystrom.RNSwipeViewControllerCenterDidAppear";
 
@@ -55,6 +57,7 @@ static CGFloat kRNSwipeDefaultDuration = 0.3f;
     UIView *_leftContainer;
     UIView *_rightContainer;
     UIView *_bottomContainer;
+    UIView *_topContainer;
     
     RNDirection _activeDirection;
     UIView *_activeContainer;
@@ -71,6 +74,8 @@ static CGFloat kRNSwipeDefaultDuration = 0.3f;
     CGRect _rightActive;
     CGRect _bottomOriginal;
     CGRect _bottomActive;
+    CGRect _topOriginal;
+    CGRect _topActive;
     
     CGPoint _centerLastPoint;
     
@@ -104,9 +109,10 @@ static CGFloat kRNSwipeDefaultDuration = 0.3f;
 - (void)_init {    
     _visibleState = RNSwipeVisibleCenter;
     
-    _leftVisibleWidth = 200.f;
-    _rightVisibleWidth = 200.f;
-    _bottomVisibleHeight = 300.0f;
+    _leftVisibleWidth = 300.f;
+    _rightVisibleWidth = 300.f;
+    _bottomVisibleHeight = 400.0f;
+    _topVisibleHeight = 500.0f;
     
     _activeContainer = nil;
     
@@ -114,12 +120,15 @@ static CGFloat kRNSwipeDefaultDuration = 0.3f;
     _leftOriginal = CGRectZero;
     _rightOriginal = CGRectZero;
     _bottomOriginal = CGRectZero;
+    _topOriginal = CGRectZero;
     
     _leftActive = CGRectZero;
     _rightActive = CGRectZero;
     _bottomActive = CGRectZero;
+    _topActive = CGRectZero;
     
     _canShowBottom = YES;
+    _canShowTop = YES;
     _canShowLeft = YES;
     _canShowRight = YES;
     
@@ -143,19 +152,24 @@ static CGFloat kRNSwipeDefaultDuration = 0.3f;
     _centerOriginal = _centerContainer.frame;
     _centerLastPoint = CGPointZero;
     
+    _activeContainer = _centerContainer;
+    
     _rightContainer = [[UIView alloc] initWithFrame:frame];
     _leftContainer = [[UIView alloc] initWithFrame:frame];
     _bottomContainer = [[UIView alloc] initWithFrame:frame];
+    _topContainer = [[UIView alloc] initWithFrame:frame];
     
     [self _layoutCenterContainer];
     [self _layoutRightContainer];
     [self _layoutLeftContainer];
     [self _layoutBottomContainer];
+    [self _layoutTopContainer];
     
     [self.view addSubview:_centerContainer];
     [self.view addSubview:_rightContainer];
     [self.view addSubview:_leftContainer];
     [self.view addSubview:_bottomContainer];
+    [self.view addSubview:_topContainer];
     
     _fadeView = [[UIView alloc] initWithFrame:_centerContainer.bounds];
     _fadeView.backgroundColor = [UIColor blackColor];
@@ -236,6 +250,21 @@ static CGFloat kRNSwipeDefaultDuration = 0.3f;
     }
 }
 
+- (void)showTop {
+    [self showTopWithDuration:kRNSwipeDefaultDuration];
+}
+
+- (void)showTopWithDuration:(NSTimeInterval)duration {
+    if (self.topViewController) {
+        [self _sendCenterToPoint:CGPointMake(0, self.topVisibleHeight) panel:_topContainer toPoint:_topActive.origin duration:duration];
+        self.visibleState = RNSwipeVisibleTop;
+        
+        if ([self.topViewController conformsToProtocol:@protocol(RNRevealViewControllerProtocol)]) {
+            [((id<RNRevealViewControllerProtocol>)self.topViewController) changedPercentReveal:100];
+        }
+    }
+}
+
 - (void)resetView {
     [self _layoutContainersAnimated:YES duration:kRNSwipeDefaultDuration];
 }
@@ -278,6 +307,17 @@ static CGFloat kRNSwipeDefaultDuration = 0.3f;
     
     _bottomActive = _bottomOriginal;
     _bottomActive.origin.y = _centerContainer.height - _bottomActive.size.height;
+}
+
+- (void)_layoutTopContainer {
+    _topContainer.height = self.topVisibleHeight;
+    self.topViewController.view.height = _topContainer.height;
+    
+    _topOriginal = _topContainer.bounds;
+    _topOriginal.origin.y = - _topOriginal.size.height;
+    
+    _topActive = _topOriginal;
+    _topActive.origin.y = 0;
 }
 
 #pragma mark - Setters
@@ -327,6 +367,17 @@ static CGFloat kRNSwipeDefaultDuration = 0.3f;
     }
 }
 
+- (void)setTopViewController:(UIViewController *)topViewController {
+    if (_topViewController != topViewController) {
+        topViewController.view.frame = _topContainer.bounds;
+        _topViewController = topViewController;
+        
+        [self addChildViewController:_topViewController];
+        
+        [self _loadTop];
+    }
+}
+
 - (void)setVisibleState:(RNSwipeVisible)visibleState {
     _visibleState = visibleState;
     if (visibleState == RNSwipeVisibleCenter) {
@@ -340,6 +391,8 @@ static CGFloat kRNSwipeDefaultDuration = 0.3f;
                              _rightContainer.layer.shadowOpacity = 0.f;
                              
                              _bottomContainer.layer.shadowOpacity = 0.f;
+                             
+                             _topContainer.layer.shadowOpacity = 0.f;
                          }
                          completion:^(BOOL finished) {
                              _leftContainer.layer.shadowRadius = 0.f;
@@ -350,6 +403,9 @@ static CGFloat kRNSwipeDefaultDuration = 0.3f;
                              
                              _bottomContainer.layer.shadowRadius = 0.f;
                              _bottomContainer.layer.shadowColor = nil;
+                             
+                             _topContainer.layer.shadowRadius = 0.f;
+                             _topContainer.layer.shadowColor = nil;
                          }];
     }
 }
@@ -389,13 +445,29 @@ static CGFloat kRNSwipeDefaultDuration = 0.3f;
     }
 }
 
+- (void)setTopVisibleHeight:(CGFloat)topVisibleHeight {
+    if (_topVisibleHeight != topVisibleHeight) {
+        _topVisibleHeight = topVisibleHeight;
+        [self _layoutTopContainer];
+        [self _layoutContainersAnimated:NO duration:0.f];
+    }
+}
+
 #pragma mark - Getters
 
 - (UIViewController*)visibleController {
     if (self.visibleState == RNSwipeVisibleLeft) return self.leftViewController;
     if (self.visibleState == RNSwipeVisibleRight) return self.rightViewController;
     if (self.visibleState == RNSwipeVisibleBottom) return self.bottomViewController;
+    if (self.visibleState == RNSwipeVisibleTop) return self.topViewController;
     return self.centerViewController;
+}
+
+- (BOOL)canShowTop {
+    if (! self.topViewController) {
+        return NO;
+    }
+    return _canShowTop;
 }
 
 - (BOOL)canShowBottom {
@@ -473,6 +545,18 @@ static CGFloat kRNSwipeDefaultDuration = 0.3f;
         [self _layoutBottomContainer];
     }
     
+    if (self.topViewController) {
+        CGRect topFrame = _topContainer.frame;
+        topFrame.size.height = self.topVisibleHeight;
+        topFrame.size.width = sizeOriented.width;
+        _bottomContainer.frame = topFrame;
+        topFrame.origin = CGPointZero;
+        self.topViewController.view.frame = topFrame;
+        [_topContainer layoutSubviews];
+        
+        [self _layoutTopContainer];
+    }
+    
     [self resetView];
 }
 
@@ -514,6 +598,9 @@ static CGFloat kRNSwipeDefaultDuration = 0.3f;
                                  if ([self.bottomViewController conformsToProtocol:@protocol(RNRevealViewControllerProtocol)]) {
                                      [((id<RNRevealViewControllerProtocol>)self.bottomViewController) changedPercentReveal:0];
                                  }
+                                 if ([self.topViewController conformsToProtocol:@protocol(RNRevealViewControllerProtocol)]) {
+                                     [((id<RNRevealViewControllerProtocol>)self.topViewController) changedPercentReveal:0];
+                                 }
                                  
                                  [[NSNotificationCenter defaultCenter] postNotificationName:RNSwipeViewControllerCenterDidAppear object:nil];
                                  if (self.swipeDelegate && [self.swipeDelegate respondsToSelector:@selector(swipeController:didShowController:)]) {
@@ -534,6 +621,7 @@ static CGFloat kRNSwipeDefaultDuration = 0.3f;
         _leftContainer.frame = _leftOriginal;
         _rightContainer.frame = _rightOriginal;
         _bottomContainer.frame = _bottomOriginal;
+        _topContainer.frame = _topOriginal;
         _centerContainer.frame = _centerOriginal;
         _fadeView.alpha = 0.f;
     };
@@ -569,6 +657,13 @@ static CGFloat kRNSwipeDefaultDuration = 0.3f;
     }
 }
 
+- (void)_loadTop {
+    if (self.topViewController && ! self.topViewController.view.superview) {
+        self.topViewController.view.frame = _topContainer.bounds;
+        [_topContainer addSubview:self.topViewController.view];
+    }
+}
+
 #pragma mark - Animations
 
 - (CGFloat)_remainingDuration:(CGFloat)position threshold:(CGFloat)threshold {
@@ -582,17 +677,6 @@ static CGFloat kRNSwipeDefaultDuration = 0.3f;
         return suggestedDuration;
     }
     return maxDuration;
-}
-
-- (CGFloat)_filterTop:(CGFloat)translation {
-    if (! self.canShowBottom) {
-        return 0.f;
-    }
-    
-    if (_centerContainer.top >= 0.f) {
-        return 0.f;
-    }
-    return translation + _centerLastPoint.y;
 }
 
 - (CGFloat)_filterLeft:(CGFloat)translation {
@@ -624,14 +708,23 @@ static CGFloat kRNSwipeDefaultDuration = 0.3f;
     return translationTotal;
 }
 
-- (CGFloat)_filterBottom:(CGFloat)translation {
-    if (! self.canShowBottom) {
+- (CGFloat)_filterTop:(CGFloat)translation {
+    if (! self.canShowBottom || ! self.canShowTop) {
         return 0.f;
     }
-    
-    if (fabsf(_centerContainer.top) >= self.bottomVisibleHeight) {
-        return self.bottomVisibleHeight * -1;
+    /*if (fabsf(_centerContainer.top) >= self.topVisibleHeight) {
+        return self.topVisibleHeight * -1;
+    }*/
+    return translation + _centerLastPoint.y;
+}
+
+- (CGFloat)_filterBottom:(CGFloat)translation {
+    if (! self.canShowBottom || ! self.canShowTop) {
+        return 0.f;
     }
+    /*if (fabsf(_centerContainer.top) >= self.bottomVisibleHeight) {
+        return self.bottomVisibleHeight * -1;
+    }*/
     return translation + _centerLastPoint.y;
 }
 
@@ -676,6 +769,10 @@ static CGFloat kRNSwipeDefaultDuration = 0.3f;
                              else if (_activeContainer == _bottomContainer) {
                                  notificationKey = RNSwipeViewControllerBottomDidAppear;
                                  controller = self.bottomViewController;
+                             }
+                             else if (_activeContainer == _topContainer) {
+                                 notificationKey = RNSwipeViewControllerTopDidAppear;
+                                 controller = self.topViewController;
                              }
                              if (notificationKey) {
                                  [[NSNotificationCenter defaultCenter] postNotificationName:notificationKey object:nil];
@@ -745,15 +842,50 @@ static CGFloat kRNSwipeDefaultDuration = 0.3f;
             }
         }
             break;
-        case RNDirectionDown:
-        case RNDirectionUp: {
-            _activeContainer = _bottomContainer;
-            
-            if (self.visibleState == RNSwipeVisibleCenter) {
-                [[NSNotificationCenter defaultCenter] postNotificationName:RNSwipeViewControllerBottomWillAppear object:nil];
+        case RNDirectionDown: {
+            if (_activeContainer == _centerContainer) {
+                _activeContainer = _topContainer;
                 
-                if (self.swipeDelegate && [self.swipeDelegate respondsToSelector:@selector(swipeController:willShowController:)]) {
-                    [self.swipeDelegate swipeController:self willShowController:self.bottomViewController];
+                if (self.visibleState == RNSwipeVisibleCenter) {
+                    [[NSNotificationCenter defaultCenter] postNotificationName:RNSwipeViewControllerTopWillAppear object:nil];
+                    
+                    if (self.swipeDelegate && [self.swipeDelegate respondsToSelector:@selector(swipeController:willShowController:)]) {
+                        [self.swipeDelegate swipeController:self willShowController:self.topViewController];
+                    }
+                }
+            } else {
+                _activeContainer = _bottomContainer;
+                
+                if (self.visibleState == RNSwipeVisibleCenter) {
+                    [[NSNotificationCenter defaultCenter] postNotificationName:RNSwipeViewControllerBottomWillAppear object:nil];
+                    
+                    if (self.swipeDelegate && [self.swipeDelegate respondsToSelector:@selector(swipeController:willShowController:)]) {
+                        [self.swipeDelegate swipeController:self willShowController:self.bottomViewController];
+                    }
+                }
+            }
+        }
+            break;
+        case RNDirectionUp: {
+            if (_activeContainer == _centerContainer) {
+                _activeContainer = _bottomContainer;
+                
+                if (self.visibleState == RNSwipeVisibleCenter) {
+                    [[NSNotificationCenter defaultCenter] postNotificationName:RNSwipeViewControllerBottomWillAppear object:nil];
+                    
+                    if (self.swipeDelegate && [self.swipeDelegate respondsToSelector:@selector(swipeController:willShowController:)]) {
+                        [self.swipeDelegate swipeController:self willShowController:self.bottomViewController];
+                    }
+                }
+            } else {
+                _activeContainer = _topContainer;
+                
+                if (self.visibleState == RNSwipeVisibleCenter) {
+                    [[NSNotificationCenter defaultCenter] postNotificationName:RNSwipeViewControllerTopWillAppear object:nil];
+                    
+                    if (self.swipeDelegate && [self.swipeDelegate respondsToSelector:@selector(swipeController:willShowController:)]) {
+                        [self.swipeDelegate swipeController:self willShowController:self.topViewController];
+                    }
                 }
             }
         }
@@ -809,7 +941,7 @@ static CGFloat kRNSwipeDefaultDuration = 0.3f;
         }
             break;
         case RNDirectionDown: {
-            if (self.visibleState != RNSwipeVisibleLeft && self.visibleState != RNSwipeVisibleRight) {
+            if (self.visibleState != RNSwipeVisibleLeft && self.visibleState != RNSwipeVisibleRight && self.visibleState == RNSwipeVisibleBottom) {
                 _centerContainer.top = [self _filterTop:translate.y];
                 _activeContainer.top = _bottomOriginal.origin.y + [self _filterTop:translate.y];
                 
@@ -817,11 +949,28 @@ static CGFloat kRNSwipeDefaultDuration = 0.3f;
                 if ([self.bottomViewController conformsToProtocol:@protocol(RNRevealViewControllerProtocol)]) {
                     [((id<RNRevealViewControllerProtocol>)self.bottomViewController) changedPercentReveal:percent];
                 }
+            } else if (self.visibleState != RNSwipeVisibleLeft && self.visibleState != RNSwipeVisibleRight && _activeContainer == _topContainer) {
+                _centerContainer.top = [self _filterTop:translate.y];
+                _activeContainer.top = [self _filterTop:translate.y] + _topOriginal.origin.y;
+                
+                NSInteger percent = MIN(fabsf(_centerContainer.bottom / self.topVisibleHeight) * 100, 100);
+                if ([self.topViewController conformsToProtocol:@protocol(RNRevealViewControllerProtocol)]) {
+                    [((id<RNRevealViewControllerProtocol>)self.topViewController) changedPercentReveal:percent];
+                }
             }
         }
             break;
         case RNDirectionUp: {
-            if (self.visibleState != RNSwipeVisibleLeft && self.visibleState != RNSwipeVisibleRight) {
+            if (self.visibleState != RNSwipeVisibleLeft && self.visibleState != RNSwipeVisibleRight && self.visibleState == RNSwipeVisibleTop) {
+                _centerContainer.top = [self _filterBottom:translate.y];
+                NSLog(@"_filterBottom:translate.y: %f", [self _filterBottom:translate.y]);
+                _activeContainer.top = [self _filterBottom:translate.y] + _topOriginal.origin.y;
+                
+                NSInteger percent = MIN(fabsf(_centerContainer.bottom / self.topVisibleHeight) * 100, 100);
+                if ([self.topViewController conformsToProtocol:@protocol(RNRevealViewControllerProtocol)]) {
+                    [((id<RNRevealViewControllerProtocol>)self.topViewController) changedPercentReveal:percent];
+                }
+            } else if (self.visibleState != RNSwipeVisibleLeft && self.visibleState != RNSwipeVisibleRight && _activeContainer == _bottomContainer) {
                 _centerContainer.top = [self _filterBottom:translate.y];
                 _activeContainer.top = _bottomOriginal.origin.y + [self _filterBottom:translate.y];
                 
@@ -849,7 +998,11 @@ static CGFloat kRNSwipeDefaultDuration = 0.3f;
             threshold = self.leftVisibleWidth;
         }
             break;
-        case RNDirectionDown:
+        case RNDirectionDown: {
+            position = abs(_centerContainer.bottom);
+            threshold = self.topVisibleHeight;
+        }
+            break;
         case RNDirectionUp: {
             position = abs(_centerContainer.top);
             threshold = self.bottomVisibleHeight;
@@ -883,7 +1036,7 @@ static CGFloat kRNSwipeDefaultDuration = 0.3f;
             [((id<RNRevealViewControllerProtocol>)self.rightViewController) changedPercentReveal:100];
         }
     }
-    else if (_centerContainer.top < self.bottomVisibleHeight / -2.f) {
+    else if (_centerContainer.top < self.bottomVisibleHeight / -2.f && _centerContainer.top < self.topVisibleHeight) {
         // bottom will be shown
         CGFloat duration = [self _remainingDuration:abs(_centerContainer.top) threshold:self.bottomVisibleHeight];
         [self _sendCenterToPoint:CGPointMake(0, -1 * self.bottomVisibleHeight) panel:_bottomContainer toPoint:_bottomActive.origin duration:duration];
@@ -891,6 +1044,16 @@ static CGFloat kRNSwipeDefaultDuration = 0.3f;
         
         if ([self.bottomViewController conformsToProtocol:@protocol(RNRevealViewControllerProtocol)]) {
             [((id<RNRevealViewControllerProtocol>)self.bottomViewController) changedPercentReveal:100];
+        }
+    }
+    else if (_centerContainer.top > self.topVisibleHeight / -2.f && _centerContainer.top > self.bottomVisibleHeight) {
+        // top will be shown
+        CGFloat duration = [self _remainingDuration:abs(_centerContainer.top) threshold:self.topVisibleHeight];
+        [self _sendCenterToPoint:CGPointMake(0, self.topVisibleHeight) panel:_topContainer toPoint:_topActive.origin duration:duration];
+        self.visibleState = RNSwipeVisibleTop;
+        
+        if ([self.topViewController conformsToProtocol:@protocol(RNRevealViewControllerProtocol)]) {
+            [((id<RNRevealViewControllerProtocol>)self.topViewController) changedPercentReveal:100];
         }
     }
     else {

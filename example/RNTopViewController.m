@@ -1,18 +1,18 @@
 //
-//  RNBottomViewController.m
+//  RNUpViewController.m
 //  RNSwipeViewController
 //
-//  Created by Ryan Nystrom on 2/22/13.
+//  Created by Paulo Khouri on 8/28/13.
 //  Copyright (c) 2013 Ryan Nystrom. All rights reserved.
 //
 
-#import "RNBottomViewController.h"
+#import "RNTopViewController.h"
 
-@interface RNBottomViewController ()
+@interface RNTopViewController ()
 
 @end
 
-@implementation RNBottomViewController
+@implementation RNTopViewController
 
 - (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
 {

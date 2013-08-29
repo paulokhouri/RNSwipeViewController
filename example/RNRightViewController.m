@@ -37,7 +37,7 @@
 }
 
 - (void)changedPercentReveal:(NSInteger)percent {
-    NSLog(@"Right: %i",percent);
+    //NSLog(@"Right: %i",percent);
     
     if (percent == 100) {
         [UIView animateWithDuration:0.1f

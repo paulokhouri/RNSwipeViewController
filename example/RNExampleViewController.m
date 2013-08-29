@@ -33,6 +33,7 @@
     self.leftViewController = [self.storyboard instantiateViewControllerWithIdentifier:@"leftViewController"];
     self.rightViewController = [self.storyboard instantiateViewControllerWithIdentifier:@"rightViewController"];
     self.bottomViewController = [self.storyboard instantiateViewControllerWithIdentifier:@"bottomViewController"];
+    self.topViewController = [self.storyboard instantiateViewControllerWithIdentifier:@"topViewController"];
     
     if (IS_IPAD) {
         self.leftVisibleWidth = 500;
@@ -52,7 +53,17 @@
 #pragma mark - Swipe delegate
 
 - (void)swipeController:(RNSwipeViewController *)swipeController willShowController:(UIViewController *)controller {
-    NSLog(@"will show");
+    if (swipeController.leftViewController == controller) {
+        NSLog(@"Will show left controller");
+    } else if (swipeController.rightViewController == controller) {
+        NSLog(@"Will show right controller");
+    } else if (swipeController.centerViewController == controller) {
+        NSLog(@"Will show center controller");
+    } else if (swipeController.bottomViewController == controller) {
+        NSLog(@"Will show bottom controller");
+    } else if (swipeController.topViewController == controller) {
+        NSLog(@"Will show top controller");
+    }
 }
 
 - (void)swipeController:(RNSwipeViewController *)swipeController didShowController:(UIViewController *)controller {
